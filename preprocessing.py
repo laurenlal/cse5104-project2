@@ -1,38 +1,42 @@
-import pandas as pd
 import duckdb
+import numpy
+import pandas as pd
 
 con = duckdb.connect()
 
-flights = con.read_csv('data/flights.csv')
-airports = con.read_csv('data/airports.csv')
-airlines = con.read_csv('data/airlines.csv')
-cancellations = con.read_csv('data/cancellation_codes.csv')
+flights = con.read_csv("data/flights.csv")
+airports = con.read_csv("data/airports.csv")
+airlines = con.read_csv("data/airlines.csv")
+cancellations = con.read_csv("data/cancellation_codes.csv")
 
 combo_data = con.sql("""
+    WITH filtered_flights AS (
+        SELECT *
+        FROM flights
+        WHERE CANCELLED = 0
+    )
+    SELECT
+        f.* EXCLUDE (
+            CANCELLED,
+            CANCELLATION_REASON,
+            AIR_SYSTEM_DELAY,
+            SECURITY_DELAY,
+            AIRLINE_DELAY,
+            LATE_AIRCRAFT_DELAY,
+            WEATHER_DELAY
+        ),
+        a.AIRPORT AS origin_airport_name,
+        a.CITY AS origin_city,
+        a.STATE AS origin_state,
+        a.COUNTRY AS origin_country,
+        a.LATITUDE AS origin_latitude,
+        a.LONGITUDE AS origin_longitude,
+        l.AIRLINE AS airline_name
+    FROM filtered_flights AS f
+    LEFT JOIN airports AS a
+        ON f.ORIGIN_AIRPORT = a.IATA_CODE
+    LEFT JOIN airlines AS l
+        ON f.AIRLINE = l.IATA_CODE
+""").df()
 
-with filter as (
-    SELECT * FROM flights
-    WHERE Cancelled = 0 
-), 
-
-SELECT f.* exclude (cancelled, cancellation_reason, air_system_delay, security_delay, airline_delay, late_aircraft_delay, weather_delay),
-           a.Airport as origin_airport,
-           a.city as origin_city,
-           a.state as origin_state,
-           a.country as origin_country,
-           a.latitude as origin_latitude,
-           a.longitude as origin_longitude,
-           l.Airline as airline,
-
-
-    FROM filter f
-    JOIN airports a ON f.ORIGIN_AIRPORT = a.IATA_CODE
-    JOIN airlines l ON f.CARRIER = l.IATA_CODE
-
-""")
-
-cancellation_merge = con.sql(""" 
-"""
-)
-
-print (combo_data)
+print(combo_data.head())
